@@ -6,8 +6,9 @@ const apiUrl = process.env["API_URL"]
 const apiPassword = process.env["API_PASSWORD"]
 
 const cachedIds = new Set();
-if (fs.existsSync("message_ids.json")) {
-    let ids = JSON.parse(fs.readFileSync('message_ids.json'));
+if (fs.existsSync("files/message_ids.json")) {
+    console.log("recreating message_id set")
+    let ids = JSON.parse(fs.readFileSync('files/message_ids.json'));
     ids.forEach(element => cachedIds.add(element))
 }
 
@@ -51,13 +52,8 @@ const filterSymbols = (data) => {
 }
 
 const sendNotification = async data => {
+    console.log(`Sending notification for message ${data["message-id"]}`)
     cachedIds.add(data["message-id"])
-    let idString = JSON.stringify(Array.from(cachedIds));
-    if (fs.existsSync("message_ids.json")) {
-        fs.unlinkSync("message_ids.json");
-    }
-    fs.writeFileSync('message_ids.json', idString);
-
 
     let fromMessage = data["sender_mime"];
     if (data["sender_mime"] !== data["sender_smtp"])
@@ -94,4 +90,10 @@ ${symbolsMessage}
 setInterval(async () => {
     const history = filterSymbols(onlyNew(onlyRejected(await getHistory())));
     history.forEach(await sendNotification)
+    console.log("Write message_ids to file")
+    if (fs.existsSync("files/message_ids.json")) {
+        console.log("purge old ids")
+        fs.unlinkSync("files/message_ids.json");
+    }
+    fs.writeFileSync('files/message_ids.json', JSON.stringify(Array.from(cachedIds)));
 }, parseInt(process.env["REFRESH"]) * 1000)
